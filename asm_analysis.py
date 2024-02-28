@@ -53,12 +53,12 @@ def create_test_kernel(function_str):
         function_header = '__global__ void ' + 'test_' + function_name \
                           + '(' + input_param + ', ' + return_type + ' *output' + ' ) {'
         function_body = '*output = ' + function_name + '('  + ', '.join(input_element) + ');'
-        function_tail = '}'
+        function_tail = '}\n'
     else:
         function_header = '__global__ void ' + 'test_' + function_name \
                           + '(' + input_param + ' ) {'
         function_body = function_name + '(' + ', '.join(input_element) + ');'
-        function_tail = '}'
+        function_tail = '}\n'
 
     main_func = 'int main(){return 0;}'
 
@@ -99,7 +99,8 @@ def cal_instruction_number(plantform, file_path):
                 if 'test' in line:
                     count = 0
                 if line.strip().startswith("/*") and line.strip().endswith("*/"):
-                    if 'NOP;' in line:
+                    if 'NOP' or 'EXIT' in line:
+                        count += 1
                         break
                     count += 1
                 elif line.strip().startswith("/*"):
@@ -109,7 +110,23 @@ def cal_instruction_number(plantform, file_path):
                     in_comment_block = False
                 elif in_comment_block:
                     count += 1
-            return count / 2
+        return count / 2
+    elif plantform == 'dl':
+        file_input = file_path.replace('.cu', '_dl.sass')
+        with open(file_input, 'r') as file:
+            input_string = file.read()
+            lines = input_string.split('\n')
+            count = 0
+
+            for line in lines:
+                if 'test' in line:
+                    count = 0
+                elif 'kill_a' in line:
+                    count += 1
+                    break
+                else:
+                    count += 1
+        return count
 
 
 def delete_files(plantform, file_path):
@@ -156,12 +173,16 @@ if __name__ == '__main__':
             create_test_cu_file(kernel_code, file_path)
             # compile cuda file
             failed = exec_command(plantform, file_path)
-            assert not failed
-            # calculate instructions
-            inst_number = cal_instruction_number(plantform, file_path)
-            # remove generated files
-            delete_files(plantform, file_path)
-            dump_result = {'function_name': function_name, 'function_return_type': function_return_type, 'inst_number': inst_number}
+            if not failed:
+                # calculate instructions
+                inst_number = cal_instruction_number(plantform, file_path)
+                # remove generated files
+                delete_files(plantform, file_path)
+                dump_result = {'function_name': function_name, 'function_return_type': function_return_type,
+                               'inst_number': inst_number}
+            else:
+                dump_result = {'function_name': function_name, 'function_return_type': 'NOT SUPPORTED',
+                               'inst_number': 0}
             file_dump_result = file_dump_result.append(dump_result, ignore_index=True)
         file_dump_result['inst_number'] = file_dump_result['inst_number'].astype(int)
         output_file_name = plantform + '_' + file.split('.')[0] + '.csv'
