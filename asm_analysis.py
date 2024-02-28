@@ -99,7 +99,7 @@ def cal_instruction_number(plantform, file_path):
                 if 'test' in line:
                     count = 0
                 if line.strip().startswith("/*") and line.strip().endswith("*/"):
-                    if 'NOP' or 'EXIT' in line:
+                    if 'NOP' in line or 'EXIT' in line:
                         count += 1
                         break
                     count += 1
